@@ -1,0 +1,35 @@
+{
+  "name": "Billboard Hot 100 Charts",
+  "description": "Complete historical Billboard Hot 100 weekly chart data from 1958 to present, updated daily",
+  "source_name": "Billboard / mhollingshead GitHub",
+  "source_logo": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e9/Billboard_Logo_2013.svg/320px-Billboard_Logo_2013.svg.png",
+  "source_url": "https://github.com/mhollingshead/billboard-hot-100",
+  "license": "Open Data (Public GitHub Repository)",
+  "update_frequency": "Daily (automated)",
+  "tags": ["music", "charts", "Billboard", "Hot 100", "popularity", "trends", "entertainment", "historical"],
+  "data_sources": [
+    {
+      "type": "json",
+      "url": "https://raw.githubusercontent.com/mhollingshead/billboard-hot-100/main/all.json",
+      "format": "JSON",
+      "description": "Complete historical data (all charts)"
+    },
+    {
+      "type": "json",
+      "url": "https://raw.githubusercontent.com/mhollingshead/billboard-hot-100/main/recent.json",
+      "format": "JSON",
+      "description": "Most recent chart only"
+    }
+  ],
+  "datasets": [
+    {
+      "id": "hot_100_charts",
+      "name": "Billboard Hot 100 Weekly Charts",
+      "description": "Complete historical Billboard Hot 100 chart rankings from August 1958 to present",
+      "time_range": "1958-08-04 to 2025-11-29",
+      "frequency": "Weekly",
+      "records": 351287,
+      "columns": 7
+    }
+  ]
+}
