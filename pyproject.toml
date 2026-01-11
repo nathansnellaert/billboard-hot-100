@@ -8,4 +8,6 @@ dependencies = [
     "httpx",
     "pyarrow",
     "deltalake>=0.17.0",
+
+    "duckdb",
 ]
