@@ -1,15 +1,12 @@
-"""Transform Billboard Hot 100 chart data with state diffing.
+"""Billboard Hot 100 chart data.
 
-- Diffs ingest state vs transform state to find new dates
-- Uses DuckDB for efficient transformation
-- Merges to Delta table by chart_date + rank (composite key)
+Full refresh with merge key - no state tracking needed.
 """
-import duckdb
 import pyarrow as pa
-from subsets_utils import load_state, save_state, upload_data, sync_metadata, validate
-from subsets_utils.duckdb import raw
+from subsets_utils import get, upload_data, sync_metadata, validate
 from subsets_utils.testing import assert_valid_date, assert_in_range
 
+DATA_URL = "https://raw.githubusercontent.com/mhollingshead/billboard-hot-100/main/all.json"
 DATASET_ID = "billboard_hot_100"
 
 METADATA = {
@@ -25,6 +22,16 @@ METADATA = {
         "weeks_on_chart": "Number of weeks on chart",
     }
 }
+
+SCHEMA = pa.schema([
+    ('chart_date', pa.string()),
+    ('rank', pa.int64()),
+    ('song', pa.string()),
+    ('artist', pa.string()),
+    ('last_week', pa.int64()),
+    ('peak_position', pa.int64()),
+    ('weeks_on_chart', pa.int64()),
+])
 
 
 def test(table: pa.Table) -> None:
@@ -42,57 +49,37 @@ def test(table: pa.Table) -> None:
         "not_null": ["chart_date", "rank", "song", "artist"],
         "min_rows": 100,
     })
-
     assert_valid_date(table, "chart_date")
     assert_in_range(table, "rank", 1, 100)
     assert_in_range(table, "peak_position", 1, 100)
 
-    # Check weeks_on_chart is positive
-    weeks = [w for w in table.column("weeks_on_chart").to_pylist() if w is not None]
-    assert all(w >= 1 for w in weeks), "weeks_on_chart should be >= 1"
-
 
 def run():
-    """Transform new dates incrementally."""
-    print("  Transforming Billboard Hot 100 charts...")
+    """Fetch and upload Billboard Hot 100 data."""
+    print("  Fetching Billboard Hot 100 data...")
+    response = get(DATA_URL)
+    response.raise_for_status()
+    charts_data = response.json()
+    print(f"  Downloaded {len(charts_data)} weekly charts")
 
-    # Diff ingest vs transform state
-    ingest_state = load_state("ingest")
-    transform_state = load_state("charts")
+    rows = []
+    for chart in charts_data:
+        chart_date = chart["date"]
+        for song in chart["data"]:
+            rows.append({
+                "chart_date": chart_date,
+                "rank": song["this_week"],
+                "song": song["song"],
+                "artist": song["artist"],
+                "last_week": song["last_week"],
+                "peak_position": song["peak_position"],
+                "weeks_on_chart": song["weeks_on_chart"],
+            })
 
-    fetched = set(ingest_state.get("fetched_dates", []))
-    transformed = set(transform_state.get("transformed_dates", []))
-    new_dates = sorted(fetched - transformed)
-
-    if not new_dates:
-        print("  No new dates to transform")
-        return
-
-    print(f"  Processing {len(new_dates)} new chart dates")
-
-    # Transform all new dates in one DuckDB query
-    assets = [f"charts/{d}" for d in new_dates]
-    table = duckdb.sql(f"""
-        SELECT
-            chart_date,
-            rank,
-            song,
-            artist,
-            last_week,
-            peak_position,
-            weeks_on_chart
-        FROM {raw(assets)}
-        ORDER BY chart_date, rank
-    """).arrow()
-
+    table = pa.Table.from_pylist(rows, schema=SCHEMA)
     print(f"  {table.num_rows:,} total records")
 
     test(table)
-    upload_data(table, DATASET_ID, mode="append")
-
-    # Update state with all new dates
-    transformed.update(new_dates)
-    save_state("charts", {"transformed_dates": sorted(transformed)})
-
+    upload_data(table, DATASET_ID, mode="merge", merge_key=["chart_date", "rank"])
     sync_metadata(DATASET_ID, METADATA)
     print("  Done!")

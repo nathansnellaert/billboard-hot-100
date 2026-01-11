@@ -1,16 +1,14 @@
 from subsets_utils import DAG, validate_environment
-from nodes import ingest, charts
+from nodes import charts
 
 workflow = DAG({
-    ingest.run: [],
-    charts.run: [ingest.run],
+    charts.run: [],
 })
 
 
 def main():
     validate_environment()
     workflow.run()
-    workflow.save_state()
 
 
 if __name__ == "__main__":
