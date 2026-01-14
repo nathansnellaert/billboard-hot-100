@@ -3,7 +3,7 @@
 Full refresh with merge key - no state tracking needed.
 """
 import pyarrow as pa
-from subsets_utils import get, upload_data, sync_metadata, validate
+from subsets_utils import get, upload_data, validate
 from subsets_utils.testing import assert_valid_date, assert_in_range
 
 DATA_URL = "https://raw.githubusercontent.com/mhollingshead/billboard-hot-100/main/all.json"
@@ -81,5 +81,12 @@ def run():
 
     test(table)
     upload_data(table, DATASET_ID, mode="merge", merge_key=["chart_date", "rank"])
-    sync_metadata(DATASET_ID, METADATA)
     print("  Done!")
+
+
+NODES = {
+    run: [],
+}
+
+if __name__ == "__main__":
+    run()

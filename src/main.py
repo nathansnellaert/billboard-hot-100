@@ -1,13 +1,10 @@
-from subsets_utils import DAG, validate_environment
-from nodes import charts
-
-workflow = DAG({
-    charts.run: [],
-})
+"""Billboard Hot 100 connector - dynamically discovers and runs all nodes."""
+from subsets_utils import load_nodes, validate_environment
 
 
 def main():
     validate_environment()
+    workflow = load_nodes()
     workflow.run()
 
 
